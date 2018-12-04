@@ -1,5 +1,7 @@
 // Juan Parra
-// Description: Stupid Dynamic Programming
+// UCFID: 4079855
+// Description: Using Dynamic programming, determine the number of unique
+// outcomes that can be established in a game where one person wins and loses
 
 import java.util.*;
 import java.io.*;
@@ -24,16 +26,20 @@ public class Epic
   public static void main(String [] args) throws Exception
   {
     Epic round = new Epic();
-    //System.out.println(round.recursive(1, new Health(round.x_max, round.r_max)));
-    System.out.println(round.fight(0, round.x_max, round.r_max));
+
+    // recursive call with memo (dp)
+    //System.out.println(round.rec(0, round.x_max, round.r_max));
+
+    // iterative call with dp
+    System.out.print(round.iterative());
   }
 
   // modified approach
-  public static int IMPOSSIBLE = -1, MOD = 10007;
+  public static int[][][] memo;                   // memo
   public static int x_moves, r_moves;             // # of moves
   public static Moves[] xorvier, ruffus;          // moveset
   public static int target, r_max, x_max;         // state
-  public static int[][] memo;                   // memo
+  public static int IMPOSSIBLE = -1, MOD = 10007;
 
   public Epic()
   {
@@ -57,82 +63,166 @@ public class Epic
       ruffus[i] = new Moves(in.nextInt(), in.nextInt());
 
     // fill in memo table
-    memo = new int[x_max+1][r_max+1];
-    for(int[] a : memo)
-      Arrays.fill(a, IMPOSSIBLE);
+    memo = new int[target+1][x_max+1][r_max+1];
+    for(int[][] a : memo)
+      for(int[] b : a)
+        Arrays.fill(b, IMPOSSIBLE);
   }
 
-  public static int fight(int time, int x_stamina, int r_stamina)
+  public static int rec(int time, int x_stamina, int r_stamina)
   {
     // base case if target is reached and winner is decided
     if(time > target && x_stamina > 0 && r_stamina <= 0)
       return 1;
 
+    // base case if fight exceeded time
     if(time > target)
       return 0;
 
+    // base case if fight ended early
     if(x_stamina <= 0 || r_stamina <= 0)
       return 0;
 
-    if(memo[x_stamina][r_stamina] != IMPOSSIBLE)
-      return memo[x_stamina][r_stamina];
+    // base case if memo contained a value
+    if(memo[time][x_stamina][r_stamina] != IMPOSSIBLE)
+      return memo[time][x_stamina][r_stamina];
 
-    int answer = 0;
-    // lets do cost only
+    int ret_val = 0;
+
+    // lets do cost only (only when fight ends on even seconds)
     if(time == target)
     {
       for(int i = 0; i < x_moves; i++)
       {
+        // pick xorvier current move
+        Moves x = xorvier[i];
+
         for(int j = 0; j < r_moves; j++)
         {
-          // pick the moves
-          Moves x = xorvier[i];
+          // pick ruffus current move
           Moves r = ruffus[j];
 
-          // begin brute brute force
-          int xCost = x_stamina - x.cost;
-          int rCost = r_stamina - r.cost;
+          // begin calculations (neither fighter can go beyond max)
+          int xCost = (x_stamina - x.cost >= x_max) ? x_max : x_stamina - x.cost;
+          int rCost = (r_stamina - r.cost >= r_max) ? r_max : r_stamina - r.cost;
 
-          //System.out.println("COST: recursive call going to time " + (time+2) + " using: " + xCost + " " + rCost);
-          answer += fight(time + 1, xCost, rCost);
-          answer %= MOD;
-
-          //memoization step
-          memo[x_stamina][r_stamina] = answer;
+          // dp with recursion
+          ret_val += rec(time + 1, xCost, rCost);
+          ret_val %= MOD;
         }
       }
+
+      return ret_val;
     }
 
     // lets execute entire move
     for(int i = 0; i < x_moves; i++)
     {
+      // pick xorvier current move
+      Moves x = xorvier[i];
+
       for(int j = 0; j < r_moves; j++)
       {
-        // pick the moves
-        Moves x = xorvier[i];
+        // pick ruffus current move
         Moves r = ruffus[j];
 
-        // begin brute brute force
-        int xCost = (x_stamina - x.cost > x_max) ? x_max : x_stamina - x.cost;
-        int rCost = (r_stamina - r.cost > r_max) ? r_max : r_stamina - r.cost;
+        // begin calculations (neither fighter can go beyond max)
+        int xCost = (x_stamina - x.cost >= x_max) ? x_max : x_stamina - x.cost;
+        int rCost = (r_stamina - r.cost >= r_max) ? r_max : r_stamina - r.cost;
 
+        // if the cost forces one of the fighters to die, that moveset combination
+        // cannot be used at all during that specific iteration
         if(xCost <= 0 || rCost <= 0)
           continue;
 
-        int xDamage = (xCost - r.damage > x_max) ? x_max : xCost - r.damage;
-        int rDamage = (rCost - x.damage > r_max) ? r_max : rCost - x.damage;
+        int xDamage = (xCost - r.damage >= x_max) ? x_max : xCost - r.damage;
+        int rDamage = (rCost - x.damage >= r_max) ? r_max : rCost - x.damage;
 
-        //System.out.println("MOVE: recursive call going to time " + (time+2) + " using: " + xDamage + " " + rDamage);
-        answer += fight(time + 2, xDamage, rDamage);
-        answer %= MOD;
-
-        //memoization step
-        //memo[xCost][rCost] = answer;
+        // recursive call
+        ret_val += rec(time + 2, xDamage, rDamage);
+        ret_val %= MOD;
       }
-      //memo[x_stamina][r_stamina] = answer;
     }
 
-    return answer;
+    //memoization step
+    memo[time][x_stamina][r_stamina] = ret_val;
+
+    return ret_val;
   }
 
+  public static int iterative()
+  {
+    int[][] current = new int[x_max+1][r_max+1];
+    int[][] next = new int[x_max+1][r_max+1];
+    current[x_max][r_max] = 1;
+
+    // lets execute entire move
+    for(int i = 0; i <= target; i+=2)
+    {
+      // fill next array with 0 values after every moveset is complete
+      for(int[] b : next)
+        Arrays.fill(b, 0);
+
+      for(int xs = x_max; xs > 0; xs--)
+      {
+        for(int rs = r_max; rs >= 0; rs--)
+        {
+          // skip if there was no value at that current state
+          if(current[xs][rs] == 0)
+            continue;
+
+          // execute movesets (choose a combination)
+          for(int j = 0; j < x_moves; j++)
+          {
+            // pick xorvier current move
+            Moves x = xorvier[j];
+
+            for(int k = 0; k < r_moves; k++)
+            {
+              // pick ruffus current move
+              Moves r = ruffus[k];
+
+              // begin calculations (neither fighter can go beyond max)
+              int xCost = (xs - x.cost >= x_max) ? x_max : xs - x.cost;
+              int rCost = (rs - r.cost >= r_max) ? r_max : rs - r.cost;
+
+              // if costs are below 0 before final time, skip that moveset
+              if(i != target && (xCost <= 0 || rCost <= 0))
+                continue;
+
+              int xDamage = (xCost - r.damage >= x_max) ? x_max : xCost - r.damage;
+              int rDamage = (rCost - x.damage >= r_max) ? r_max : rCost - x.damage;
+
+              // if fight ended on an even second
+              if(i == target && xCost > 0 && rCost <= 0)
+              {
+                next[0][0] += current[xs][rs];
+                next[0][0] %= MOD;
+              }
+
+              // if fight ended on an odd second
+              else if(i == (target -1) && xDamage > 0 && rDamage <= 0)
+              {
+                next[0][0] += current[xs][rs];
+                next[0][0] %= MOD;
+              }
+
+              // fight isnt done yet and make sure both fights have valid staminas
+              else if(xDamage > 0 && rDamage > 0 && i < target)
+              {
+                next[xDamage][rDamage] += current[xs][rs];
+                next[xDamage][rDamage] %= MOD;
+              }
+            }
+          }
+        }
+      }
+
+      int[][] tmp = current;
+      current = next;
+      next = tmp;
+    }
+
+    return current[0][0];
+  }
 }
