@@ -1,5 +1,4 @@
 // Juan Parra
-// UCFID: 4079855
 // Description: Stupid Dynamic Programming
 
 import java.util.*;
