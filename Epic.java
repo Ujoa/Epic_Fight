@@ -1,5 +1,4 @@
 // Juan Parra
-// UCFID: 4079855
 // Description: Using Dynamic programming, determine the number of unique
 // outcomes that can be established in a game where one person wins and loses
 
